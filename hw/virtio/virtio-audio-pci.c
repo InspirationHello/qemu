@@ -10,31 +10,16 @@
 
 #include "virtio-pci.h"
 #include "hw/qdev-properties.h"
+#include "hw/virtio/virtio-audio-pci.h"
 #include "hw/virtio/virtio-audio.h"
 #include "qemu/module.h"
 #include "qapi/error.h"
-
-/* virtio-audio-pci */
-
-typedef struct VirtIOAudioPCI VirtIOAudioPCI;
-
-/*
- * virtio-audio-pci: This extends VirtioPCIProxy.
- */
-#define TYPE_VIRTIO_AUDIO_PCI "virtio-audio-pci"
-#define VIRTIO_AUDIO_PCI(obj) \
-        OBJECT_CHECK(VirtIOAudioPCI, (obj), TYPE_VIRTIO_AUDIO_PCI)
-
-struct VirtIOAudioPCI {
-    VirtIOPCIProxy parent_obj;
-    VirtIOAudio vdev;
-};
- 
 
 static void virtio_audio_pci_realize(VirtIOPCIProxy *vpci_dev, Error **errp)
 {
     VirtIOAudioPCI *vaudio = VIRTIO_AUDIO_PCI(vpci_dev);
     DeviceState *vdev = DEVICE(&vaudio->vdev);
+    VirtIOAudioPCIClass *k = VIRTIO_AUDIO_PCI_GET_CLASS(vpci_dev);
     Error *err = NULL;
 
     qdev_set_parent_bus(vdev, BUS(&vpci_dev->bus));
@@ -42,6 +27,10 @@ static void virtio_audio_pci_realize(VirtIOPCIProxy *vpci_dev, Error **errp)
     if (err) {
         error_propagate(errp, err);
         return;
+    }
+
+    if (k->realize) {
+       k->realize(vpci_dev, errp);
     }
 }
 
@@ -77,6 +66,7 @@ static const VirtioPCIDeviceTypeInfo virtio_audio_pci_info = {
     .instance_size = sizeof(VirtIOAudioPCI),
     .instance_init = virtio_audio_initfn,
     .class_init    = virtio_audio_pci_class_init,
+    .class_size    = sizeof(VirtIOAudioPCIClass),
 };
 
 static void virtio_audio_pci_register(void)
